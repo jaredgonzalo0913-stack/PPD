@@ -1,0 +1,64 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.8);
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-lg;
+  }
+
+  .button-primary {
+    @apply px-4 py-2 bg-cyan text-navy font-semibold rounded-lg hover:bg-cyan-dark transition-colors;
+  }
+
+  .button-secondary {
+    @apply px-4 py-2 bg-steel-gray text-white font-semibold rounded-lg hover:bg-deep-blue transition-colors border border-cyan/30;
+  }
+
+  .button-ghost {
+    @apply px-4 py-2 text-cyan hover:bg-cyan/10 rounded-lg transition-colors font-semibold;
+  }
+
+  .glow-text {
+    @apply text-cyan drop-shadow-[0_0_8px_rgba(0,212,255,0.5)];
+  }
+
+  .card {
+    @apply glass-panel p-6 hover:border-cyan/50 transition-all duration-300;
+  }
+
+  .heading-title {
+    @apply text-3xl font-bold glow-text mb-4;
+  }
+
+  .heading-section {
+    @apply text-2xl font-bold text-cyan mb-3;
+  }
+
+  .heading-subsection {
+    @apply text-xl font-semibold text-light-gray mb-2;
+  }
+}
+
+body {
+  background: linear-gradient(135deg, #0a1628 0%, #1a2f4f 100%);
+  min-height: 100vh;
+}
