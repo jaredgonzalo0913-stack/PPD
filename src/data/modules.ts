@@ -610,3 +610,62 @@ export const LEARNING_MODULES: LearningModule[] = [
     ],
   },
 ];
+
+export const WEEK_1_MODULE: LearningModule = {
+  id: 'week-01-ideal-gas-cycle',
+  title: 'Week 1: Ideal Gas Cycle',
+  description: 'Ideal Gas Cycle lessons and formative assessments',
+  completed: false,
+  progress: 0,
+  lessons: [
+    {
+      id: 'week-01-lesson-01',
+      title: 'Introduction to Ideal Gas Cycle',
+      content: 'This collection of topics provides a comprehensive overview of fundamental thermodynamic cycles that are crucial for understanding the operation of various heat engines and power plants. These cycles serve as theoretical models to analyze and improve the performance of real-world devices.\n\nThe journey begins with the Introduction to Ideal Gas Cycle, which lays the groundwork by defining the assumptions and principles that govern the behavior of a gas as it undergoes a series of processes (heating, cooling, compression, and expansion) in a closed loop. This foundational concept is then applied to several specific cycles, each representing a different type of engine or power system.\n\nThe Rankine Cycle is the theoretical model for most steam power plants, which use a phase change (liquid to vapor and back to liquid) to generate power. In contrast, the Brayton Cycle is the basis for gas turbines and jet engines, where the working fluid remains in the gaseous state throughout the cycle.\n\nThe Carnot Cycle is a theoretical benchmark, representing the most efficient possible heat engine cycle. While impossible to achieve in practice, it provides a crucial yardstick against which the performance of all other cycles can be measured.\n\nFinally, the remaining cycles, including the Otto Cycle, Diesel Cycle, and Dual Cycle, are all models for internal combustion engines. The Otto Cycle describes the operation of spark-ignition gasoline engines, while the Diesel Cycle models compression-ignition diesel engines. The Dual Cycle is a more refined model that combines elements of both the Otto and Diesel cycles to more accurately represent the behavior of modern high-speed diesel engines.\n\nTogether, these topics offer a thorough exploration of the key thermodynamic principles that underpin the generation of power and the operation of a wide range of mechanical devices.',
+      components: [],
+    },
+    {
+      id: 'week-01-lesson-02',
+      title: 'Single Cycle vs Combined Cycles',
+      content: 'A single-cycle power plant, often referred to as a simple-cycle plant, uses a single thermodynamic cycle to convert fuel into electricity. A gas turbine operating on the Brayton Cycle is an example. Air is compressed and mixed with fuel, combustion creates hot, high-pressure gas, and the gas expands through a turbine that drives a generator. The hot exhaust is then released into the atmosphere. This plant is relatively simple and starts quickly, making it suitable for peak power demands. Its efficiency is typically around 33–40%, because significant energy is wasted as exhaust heat.\n\nA combined-cycle system integrates two thermodynamic cycles in series. A common configuration combines a Brayton Cycle gas turbine with a Rankine Cycle steam turbine. The gas turbine generates electricity, then its hot exhaust passes through a Heat Recovery Steam Generator (HRSG), which uses the exhaust heat to produce high-pressure steam. The steam drives a separate turbine and generator. Reusing waste heat allows combined-cycle plants to achieve efficiencies often exceeding 60%, making them more efficient for large-scale, continuous power generation.',
+      components: [],
+    },
+    {
+      id: 'week-01-lesson-03',
+      title: 'Key Processes Involved in the Internal Combustion Engine',
+      content: 'An internal combustion engine operates through distinct processes in its cylinders, converting the chemical energy in fuel into mechanical work. These processes are commonly grouped into cycles such as the Otto or Diesel cycle.\n\n1. Air Intake Process: The piston moves downward from Top Dead Center (TDC) to Bottom Dead Center (BDC). The intake valve opens and fresh air, or an air-fuel mixture depending on engine type, enters the cylinder. In direct-injection engines, fuel may be injected during intake or compression. Older systems may mix fuel and air before they enter the cylinder.\n2. Air Compression Process: The intake valve closes and the piston moves upward from BDC to TDC, compressing the air or air-fuel mixture. This increases pressure and temperature. In diesel engines, compressing air alone raises its temperature sufficiently for injected fuel to self-ignite.\n3. Combustion or Power Process: Near the end of compression, the charge ignites. In a spark-ignition engine, a spark plug ignites the mixture. In a compression-ignition diesel engine, fuel is injected into hot compressed air and self-ignites. Expanding combustion gases push the piston downward from TDC to BDC, turning the crankshaft and producing torque.\n4. Exhaust Process: The exhaust valve opens as the piston moves upward from BDC to TDC, pushing spent combustion gases into the exhaust manifold and clearing the cylinder for the next cycle.\n\nThese four processes—intake, compression, combustion/power, and exhaust—form the complete cycle of a four-stroke internal combustion engine.',
+      components: [],
+    },
+  ],
+  assessments: [
+    {
+      id: 'week-01-formative-assessment-1',
+      title: 'Formative Assessment 1',
+      instruction: 'Accomplish a summary paper differentiating each cycle and deciding on which cycle is the most efficient. Upload your file in the required format.',
+      rubric: 'A rubric will determine your grade.',
+      requiredSubmissionDetails: 'Filename, name, section, and course.',
+      exampleFilename: 'Jose_Mang_RA1_AUXMACH2B',
+      exampleDetails: 'Name: Mang A. Jose; Section: ME3A; Course: PPD.',
+    },
+    {
+      id: 'week-01-formative-assessment-1-1a',
+      title: 'Formative Assessment 1.1A',
+      instruction: 'Answer and provide results for your CBT assessment. Make an outcome for each CBT.',
+      platform: 'Seagull Platform',
+      cbt: 'CBT#0483 — Introduction to Two-stroke Diesel Engines.',
+      practicalAssessment: 'Practical assessment 1.2A MMMA-PPD-001.',
+      requiredSubmissionDetails: 'Filename, name, section, and course.',
+      exampleFilename: 'Jose_Mang_PA1.2A_PPD',
+    },
+    {
+      id: 'week-01-formative-assessment-1-1b',
+      title: 'Formative Assessment 1.1B',
+      instruction: 'Answer and provide results for your CBT assessment. Make an outcome for each CBT.',
+      platform: 'Seagull Platform',
+      cbt: 'CBT#0485 — Introduction to Four-stroke Diesel Engines.',
+      practicalAssessment: 'Practical assessment 1.2A MMMA-PPD-002.',
+      requiredSubmissionDetails: 'Filename, name, section, and course.',
+      exampleFilename: 'Jose_Mang_PA1.2B_PPD',
+    },
+  ],
+};

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { LEARNING_MODULES } from '../data/modules';
-import { LearningModule, Lesson } from '../types';
+import { LEARNING_MODULES, WEEK_1_MODULE } from '../data/modules';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import Quiz from '../components/Quiz';
 import { useAppStore } from '../store';
+
+const MODULES = [WEEK_1_MODULE, ...LEARNING_MODULES];
 
 export default function ModulesPage() {
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
@@ -19,10 +20,6 @@ export default function ModulesPage() {
     updateProgress({ moduleScores: newScores });
   };
 
-  const selectiveLesson = activeLesson ? 
-    LEARNING_MODULES.find(m => m.id === expandedModule)?.lessons.find(l => l.id === activeLesson) 
-    : null;
-
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-6xl mx-auto px-4">
@@ -31,7 +28,7 @@ export default function ModulesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Module List */}
           <div className="lg:col-span-2 space-y-4">
-            {LEARNING_MODULES.map((module) => (
+            {MODULES.map((module) => (
               <div key={module.id} className="glass-panel">
                 <button
                   onClick={() => setExpandedModule(expandedModule === module.id ? null : module.id)}
@@ -61,20 +58,20 @@ export default function ModulesPage() {
                     {module.lessons.map((lesson) => (
                       <div key={lesson.id} className="space-y-3">
                         <button
-                          onClick={() => setActiveLesson(activeLesson?.id === lesson.id ? null : lesson.id)}
+                          onClick={() => setActiveLesson(activeLesson === lesson.id ? null : lesson.id)}
                           className="w-full text-left p-3 bg-steel-gray hover:bg-steel-gray/80 rounded-lg transition-colors flex items-center justify-between"
                         >
                           <span className="font-semibold text-cyan">{lesson.title}</span>
-                          {activeLesson?.id === lesson.id ? (
+                          {activeLesson === lesson.id ? (
                             <ChevronUp className="w-5 h-5 text-cyan" />
                           ) : (
                             <ChevronDown className="w-5 h-5 text-cyan" />
                           )}
                         </button>
 
-                        {activeLesson?.id === lesson.id && (
+                        {activeLesson === lesson.id && (
                           <div className="bg-white/5 p-4 rounded-lg space-y-4 border border-cyan/20">
-                            <p className="text-light-gray">{lesson.content}</p>
+                            <p className="text-light-gray whitespace-pre-line">{lesson.content}</p>
                             
                             {lesson.components.length > 0 && (
                               <div>
@@ -102,6 +99,25 @@ export default function ModulesPage() {
                         )}
                       </div>
                     ))}
+
+                    {module.assessments && module.assessments.length > 0 && (
+                      <div className="border-t border-cyan/20 pt-6 space-y-4">
+                        <h3 className="text-lg font-bold text-cyan">📝 Formative Assessments</h3>
+                        {module.assessments.map((assessment) => (
+                          <section key={assessment.id} className="bg-white/5 p-4 rounded-lg space-y-2 border border-cyan/20">
+                            <h4 className="font-semibold text-cyan">{assessment.title}</h4>
+                            <p className="text-light-gray">{assessment.instruction}</p>
+                            {assessment.rubric && <p className="text-light-gray">{assessment.rubric}</p>}
+                            {assessment.platform && <p className="text-light-gray"><span className="font-semibold text-cyan">Platform:</span> {assessment.platform}</p>}
+                            {assessment.cbt && <p className="text-light-gray">{assessment.cbt}</p>}
+                            {assessment.practicalAssessment && <p className="text-light-gray">{assessment.practicalAssessment}</p>}
+                            <p className="text-light-gray"><span className="font-semibold text-cyan">Required submission details:</span> {assessment.requiredSubmissionDetails}</p>
+                            <p className="text-light-gray"><span className="font-semibold text-cyan">Example filename:</span> {assessment.exampleFilename}</p>
+                            {assessment.exampleDetails && <p className="text-light-gray">{assessment.exampleDetails}</p>}
+                          </section>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

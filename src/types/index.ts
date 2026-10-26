@@ -20,8 +20,22 @@ export interface LearningModule {
   title: string;
   description: string;
   lessons: Lesson[];
+  assessments?: FormativeAssessment[];
   completed: boolean;
   progress: number;
+}
+
+export interface FormativeAssessment {
+  id: string;
+  title: string;
+  instruction: string;
+  platform?: string;
+  cbt?: string;
+  practicalAssessment?: string;
+  rubric?: string;
+  requiredSubmissionDetails: string;
+  exampleFilename: string;
+  exampleDetails?: string;
 }
 
 export interface Lesson {
