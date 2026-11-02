@@ -20,14 +20,17 @@ export default function ProgressPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-6xl mx-auto px-4">
-        <h1 className="heading-title text-center mb-12">📊 Your Learning Progress</h1>
+        <h1 className="heading-title mb-3">Your Learning Progress</h1>
+        <p className="text-light-gray mb-8">
+          These indicators reflect activity in the current browser session only. They are not saved to Supabase.
+        </p>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           <div className="card">
             <div className="flex items-center gap-3 mb-3">
               <TrendingUp className="w-6 h-6 text-cyan" />
-              <span className="text-light-gray">Overall Score</span>
+              <span className="text-light-gray">Average quiz-group score</span>
             </div>
             <div className="text-4xl font-bold glow-text">{averageScore}%</div>
           </div>
@@ -35,7 +38,7 @@ export default function ProgressPage() {
           <div className="card">
             <div className="flex items-center gap-3 mb-3">
               <BookOpen className="w-6 h-6 text-cyan" />
-              <span className="text-light-gray">Modules</span>
+              <span className="text-light-gray">Quiz groups with scores</span>
             </div>
             <div className="text-4xl font-bold glow-text">
               {Object.keys(studentProgress.moduleScores).length}/8
@@ -45,9 +48,9 @@ export default function ProgressPage() {
           <div className="card">
             <div className="flex items-center gap-3 mb-3">
               <Zap className="w-6 h-6 text-cyan" />
-              <span className="text-light-gray">Total XP</span>
+              <span className="text-light-gray">Quiz attempts</span>
             </div>
-            <div className="text-4xl font-bold glow-text">{studentProgress.totalXP}</div>
+            <div className="text-4xl font-bold glow-text">{studentProgress.quizzesCompleted}</div>
           </div>
 
           <div className="card">
@@ -61,7 +64,10 @@ export default function ProgressPage() {
 
         {/* Module Scores */}
         <div className="glass-panel p-8 mb-12">
-          <h2 className="heading-section mb-6">Module Performance</h2>
+          <h2 className="heading-section mb-2">Quiz performance by original module group</h2>
+          <p className="text-light-gray text-sm mb-6">
+            These quiz groups remain available in Assessments even though only Week 1 lessons appear in Modules.
+          </p>
           <div className="space-y-6">
             {LEARNING_MODULES.map((module) => {
               const score = studentProgress.moduleScores[module.id] || 0;
@@ -129,27 +135,12 @@ export default function ProgressPage() {
           </div>
         </div>
 
-        {/* Learning Insights */}
         <div className="glass-panel p-8">
-          <h2 className="heading-section mb-6">📈 Learning Insights</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 bg-cyan/10 border border-cyan/30 rounded-lg">
-              <h3 className="font-semibold text-cyan mb-2">📚 Lessons Completed</h3>
-              <p className="text-light-gray mb-4">{studentProgress.lessonsCompleted} out of 24 total lessons</p>
-              <div className="h-2 bg-steel-gray rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-cyan to-cyan-dark"
-                  style={{ width: `${(studentProgress.lessonsCompleted / 24) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="p-4 bg-cyan/10 border border-cyan/30 rounded-lg">
-              <h3 className="font-semibold text-cyan mb-2">✓ Quizzes Completed</h3>
-              <p className="text-light-gray mb-4">{studentProgress.quizzesCompleted} quiz attempts</p>
-              <p className="text-cyan text-sm">Keep practicing to improve your scores!</p>
-            </div>
-          </div>
+          <h2 className="heading-section mb-3">Progress tracking limitation</h2>
+          <p className="text-light-gray">
+            Lesson completion and assignment submissions are not currently persisted or tracked here.
+            Quiz attempts, scores, and component exploration reset on sign-out or browser refresh.
+          </p>
         </div>
       </div>
     </div>

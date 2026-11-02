@@ -13,6 +13,7 @@
   "dependencies": {
     "@react-three/drei": "^9.88.0",
     "@react-three/fiber": "^8.15.0",
+    "@supabase/supabase-js": "^2.118.0",
     "classnames": "^2.3.2",
     "clsx": "^2.0.0",
     "framer-motion": "^10.16.4",

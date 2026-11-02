@@ -1,170 +1,188 @@
-import { useEffect } from 'react';
-import { LEARNING_MODULES } from '../data/modules';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { LEARNING_MODULES, WEEK_1_MODULE } from '../data/modules';
+import Quiz from '../components/Quiz';
 import { useAppStore } from '../store';
-import { Zap } from 'lucide-react';
+import { useAuth } from '../auth/AuthProvider';
+
+const AssessmentWorkspace = lazy(() => import('../components/AssessmentWorkspace'));
+
+const availableQuizzes = LEARNING_MODULES.flatMap((module) =>
+  module.lessons.flatMap((lesson) =>
+    lesson.quiz
+      ? [{
+          quizId: lesson.quiz.id,
+          moduleId: module.id,
+          moduleTitle: module.title,
+          lessonTitle: lesson.title,
+          questions: lesson.quiz.questions,
+        }]
+      : [],
+  ),
+);
 
 export default function AssessmentsPage() {
-  const { studentProgress, updateProgress } = useAppStore();
+  const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
+  const studentProgress = useAppStore((state) => state.studentProgress);
+  const { role } = useAuth();
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const allQuizzes = LEARNING_MODULES.flatMap((module) =>
-    module.lessons.map((lesson) => ({
-      quizId: lesson.quiz?.id,
-      moduleId: module.id,
-      moduleTitle: module.title,
-      lessonTitle: lesson.title,
-      questions: lesson.quiz?.questions || [],
-    }))
-  ).filter(q => q.quizId);
+  const activeQuiz = availableQuizzes.find((quiz) => quiz.quizId === activeQuizId);
 
-  const handleQuizStart = (moduleId: string, lessonTitle: string) => {
-    // Navigate to modules page and expand the specific module
-    // This is a simplified version - full implementation would use routing
-    alert(`Starting assessment: ${lessonTitle}\n\nGo to Learning Modules to take this quiz.`);
+  const handleQuizComplete = (moduleId: string, quizId: string, score: number) => {
+    useAppStore.setState((state) => ({
+      studentProgress: {
+        ...state.studentProgress,
+        moduleScores: {
+          ...state.studentProgress.moduleScores,
+          [moduleId]: score,
+        },
+        quizScores: {
+          ...state.studentProgress.quizScores,
+          [quizId]: score,
+        },
+        quizzesCompleted: state.studentProgress.quizzesCompleted + 1,
+      },
+    }));
   };
 
   return (
-    <div className="min-h-screen py-12">
-      <div className="max-w-6xl mx-auto px-4">
-        <h1 className="heading-title text-center mb-12">✅ Assessments & Quizzes</h1>
+    <div className="min-h-screen py-10">
+      <div className="max-w-6xl mx-auto px-4 space-y-8">
+        <header>
+          <h1 className="heading-title">Assessments</h1>
+          <p className="text-light-gray mt-2">
+            Knowledge-check quizzes, formative assessment references, and course activities.
+          </p>
+        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Stats */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <div className="card text-center">
-                <div className="text-3xl font-bold glow-text">{studentProgress.quizzesCompleted}</div>
-                <p className="text-light-gray text-sm">Quizzes Completed</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-3xl font-bold glow-text">{allQuizzes.length}</div>
-                <p className="text-light-gray text-sm">Total Available</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-3xl font-bold glow-text">
-                  {allQuizzes.length > 0 
-                    ? Math.round((studentProgress.quizzesCompleted / allQuizzes.length) * 100)
-                    : 0}%
+        {role && (
+          <Suspense fallback={<p role="status" className="text-cyan">Loading assessment workspace...</p>}>
+            <AssessmentWorkspace role={role} />
+          </Suspense>
+        )}
+
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Assessment overview">
+          <div className="card">
+            <p className="text-light-gray text-sm">Existing quizzes</p>
+            <p className="text-3xl font-bold glow-text">{availableQuizzes.length}</p>
+          </div>
+          <div className="card">
+            <p className="text-light-gray text-sm">Quiz attempts this session</p>
+            <p className="text-3xl font-bold glow-text">{studentProgress.quizzesCompleted}</p>
+          </div>
+          <div className="card">
+            <p className="text-light-gray text-sm">Formative assessment references</p>
+            <p className="text-3xl font-bold glow-text">
+              {WEEK_1_MODULE.assessments?.length ?? 0}
+            </p>
+          </div>
+        </section>
+
+        <section className="glass-panel p-6 sm:p-8">
+          <h2 className="heading-section mb-5">Knowledge-check quizzes</h2>
+          <p className="text-light-gray text-sm mb-5">
+            Quiz scores and attempts are held in the current browser session and are not saved to Supabase.
+          </p>
+          {activeQuiz && (
+            <div className="card mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="heading-subsection">{activeQuiz.lessonTitle}</h3>
+                  <p className="text-light-gray text-sm">{activeQuiz.moduleTitle}</p>
                 </div>
-                <p className="text-light-gray text-sm">Completion Rate</p>
+                <button
+                  type="button"
+                  onClick={() => setActiveQuizId(null)}
+                  className="button-secondary"
+                >
+                  Close quiz
+                </button>
               </div>
-              <div className="card text-center">
-                <div className="text-3xl font-bold glow-text">{studentProgress.totalXP}</div>
-                <p className="text-light-gray text-sm">Total XP Earned</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Assessment Types */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          <div className="glass-panel p-6 border-2 border-blue-400/50">
-            <h3 className="heading-subsection text-blue-400 mb-3">Multiple Choice</h3>
-            <p className="text-light-gray mb-4">Test your understanding with multiple choice questions about ME-C concepts, components, and systems.</p>
-            <button className="button-secondary">Learn More</button>
-          </div>
-
-          <div className="glass-panel p-6 border-2 border-cyan-400/50">
-            <h3 className="heading-subsection text-cyan mb-3">Component Identification</h3>
-            <p className="text-light-gray mb-4">Identify ME-C engine components from the 3D model and demonstrate your recognition skills.</p>
-            <button className="button-secondary">Learn More</button>
-          </div>
-
-          <div className="glass-panel p-6 border-2 border-purple-400/50">
-            <h3 className="heading-subsection text-purple-400 mb-3">System Flow</h3>
-            <p className="text-light-gray mb-4">Demonstrate understanding of how ME-C control systems work together to manage engine operation.</p>
-            <button className="button-secondary">Learn More</button>
-          </div>
-
-          <div className="glass-panel p-6 border-2 border-amber-400/50">
-            <h3 className="heading-subsection text-amber-400 mb-3">Scenario-Based</h3>
-            <p className="text-light-gray mb-4">Solve real-world scenarios that test your understanding of ME-C engine control and operation.</p>
-            <button className="button-secondary">Learn More</button>
-          </div>
-        </div>
-
-        {/* Available Assessments */}
-        <div className="glass-panel p-8">
-          <h2 className="heading-section mb-6">📋 Available Assessments</h2>
-
-          <div className="space-y-3">
-            {allQuizzes.map((quiz, idx) => (
-              <div
-                key={idx}
-                className="p-4 bg-steel-gray hover:bg-steel-gray/80 border border-cyan/30 rounded-lg flex items-center justify-between transition-all group"
-              >
-                <div className="flex-1">
-                  <div className="font-bold text-cyan mb-1">{quiz.lessonTitle}</div>
-                  <div className="text-sm text-light-gray">{quiz.moduleTitle}</div>
-                  <div className="text-xs text-cyan/70 mt-1">
-                    📝 {quiz.questions.length} question{quiz.questions.length > 1 ? 's' : ''}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-cyan/70">
-                    <Zap className="w-4 h-4" />
-                    <span className="text-sm font-semibold">+10 XP</span>
-                  </div>
-
-                  {studentProgress.moduleScores[quiz.moduleId] ? (
-                    <div className="text-center">
-                      <div className="text-sm font-bold text-green-400">
-                        {studentProgress.moduleScores[quiz.moduleId]}%
-                      </div>
-                      <div className="text-xs text-light-gray">Your Score</div>
-                    </div>
-                  ) : null}
-
-                  <button
-                    onClick={() => handleQuizStart(quiz.moduleId, quiz.lessonTitle)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                      studentProgress.moduleScores[quiz.moduleId]
-                        ? 'button-secondary'
-                        : 'button-primary'
-                    }`}
-                  >
-                    {studentProgress.moduleScores[quiz.moduleId] ? 'Retake' : 'Start'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {allQuizzes.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-light-gray">No assessments available yet.</p>
+              <Quiz
+                key={activeQuiz.quizId}
+                questions={activeQuiz.questions}
+                onComplete={(score) =>
+                  handleQuizComplete(activeQuiz.moduleId, activeQuiz.quizId, score)
+                }
+              />
             </div>
           )}
-        </div>
 
-        {/* Tips */}
-        <div className="mt-12 glass-panel p-8">
-          <h2 className="heading-section mb-6">💡 Assessment Tips</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h3 className="font-bold text-cyan mb-3">✓ Before Taking a Quiz</h3>
-              <ul className="space-y-2 text-light-gray text-sm">
-                <li>• Review the lesson content thoroughly</li>
-                <li>• Use the 3D engine lab to visualize components</li>
-                <li>• Check the component library for reference</li>
-                <li>• Take notes on key concepts</li>
-              </ul>
-            </div>
-            <div className="space-y-3">
-              <h3 className="font-bold text-cyan mb-3">✓ During the Quiz</h3>
-              <ul className="space-y-2 text-light-gray text-sm">
-                <li>• Read questions carefully</li>
-                <li>• Think through each answer option</li>
-                <li>• Don't rush - accuracy is more important</li>
-                <li>• Use the explanations to learn from answers</li>
-              </ul>
-            </div>
+          <div className="space-y-3">
+            {availableQuizzes.map((quiz) => {
+              const score = studentProgress.quizScores[quiz.quizId];
+              return (
+                <article
+                  key={quiz.quizId}
+                  className="p-4 bg-steel-gray border border-cyan/30 rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                >
+                  <div>
+                    <h3 className="font-bold text-cyan">{quiz.lessonTitle}</h3>
+                    <p className="text-sm text-light-gray">{quiz.moduleTitle}</p>
+                    <p className="text-xs text-cyan/70 mt-1">
+                      {quiz.questions.length} question{quiz.questions.length === 1 ? '' : 's'}
+                      {score !== undefined && (
+                        <span className="text-green-300"> · Latest session score: {score}%</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveQuizId(quiz.quizId)}
+                    className={score !== undefined ? 'button-secondary' : 'button-primary'}
+                  >
+                    {score !== undefined ? 'Retake' : 'Start'}
+                  </button>
+                </article>
+              );
+            })}
+            {availableQuizzes.length === 0 && (
+              <p className="text-light-gray py-6">No knowledge-check quizzes are available.</p>
+            )}
           </div>
-        </div>
+        </section>
+
+        <section className="glass-panel p-6 sm:p-8">
+          <h2 className="heading-section mb-2">Week 1 formative assessments</h2>
+          <p className="text-light-gray text-sm mb-5">
+            Original instructions and submission references from the Week 1 module data.
+          </p>
+          <div className="space-y-4">
+            {WEEK_1_MODULE.assessments?.map((assessment) => (
+              <article
+                key={assessment.id}
+                className="bg-white/5 p-5 rounded-lg space-y-2 border border-cyan/20"
+              >
+                <h3 className="font-semibold text-cyan">{assessment.title}</h3>
+                <p className="text-light-gray whitespace-pre-line">{assessment.instruction}</p>
+                {assessment.rubric && <p className="text-light-gray">{assessment.rubric}</p>}
+                {assessment.platform && (
+                  <p className="text-light-gray">
+                    <span className="font-semibold text-cyan">Platform:</span> {assessment.platform}
+                  </p>
+                )}
+                {assessment.cbt && <p className="text-light-gray">{assessment.cbt}</p>}
+                {assessment.practicalAssessment && (
+                  <p className="text-light-gray">{assessment.practicalAssessment}</p>
+                )}
+                <p className="text-light-gray">
+                  <span className="font-semibold text-cyan">Required submission details:</span>{' '}
+                  {assessment.requiredSubmissionDetails}
+                </p>
+                <p className="text-light-gray">
+                  <span className="font-semibold text-cyan">Example filename:</span>{' '}
+                  {assessment.exampleFilename}
+                </p>
+                {assessment.exampleDetails && (
+                  <p className="text-light-gray">{assessment.exampleDetails}</p>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

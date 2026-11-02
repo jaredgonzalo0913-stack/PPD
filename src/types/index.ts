@@ -1,4 +1,30 @@
-export type Page = 'home' | 'modules' | 'engine-lab' | 'components' | 'system-explorer' | 'assessments' | 'progress';
+export type Page = 'home' | 'modules' | 'engine-lab' | 'components' | 'system-explorer' | 'assessments' | 'progress' | 'profile-settings' | 'password-recovery' | 'admin-dashboard' | 'admin-accounts';
+
+export type UserRole = 'student' | 'instructor' | 'admin';
+
+export interface UserProfile {
+  id: string;
+  display_name: string | null;
+  role: UserRole;
+}
+
+export interface AdminAccountProfile {
+  id: string;
+  display_name: string | null;
+  role: UserRole;
+}
+
+export interface InstructorAccessRequest {
+  id: string;
+  user_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submitted_at: string;
+  applicant: {
+    display_name: string | null;
+  } | null;
+}
+
+export type InstructorRequestDecision = 'approved' | 'rejected';
 
 export interface Component {
   id: string;
@@ -63,6 +89,7 @@ export interface Question {
 
 export interface StudentProgress {
   moduleScores: Record<string, number>;
+  quizScores: Record<string, number>;
   componentsExplored: string[];
   quizzesCompleted: number;
   totalXP: number;

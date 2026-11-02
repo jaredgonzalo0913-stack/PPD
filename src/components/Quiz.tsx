@@ -26,7 +26,7 @@ export default function Quiz({ questions, onComplete }: QuizProps) {
   const handleSubmit = () => {
     setShowResult(true);
     if (isCorrect) {
-      setScore(score + 1);
+      setScore((currentScore) => currentScore + 1);
     }
   };
 
@@ -36,9 +36,8 @@ export default function Quiz({ questions, onComplete }: QuizProps) {
       setSelectedAnswer(null);
       setShowResult(false);
     } else {
-      const finalScore = isCorrect ? score + 1 : score;
       setCompleted(true);
-      onComplete?.(Math.round((finalScore / questions.length) * 100));
+      onComplete?.(Math.round((score / questions.length) * 100));
     }
   };
 

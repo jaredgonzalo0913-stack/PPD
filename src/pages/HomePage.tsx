@@ -1,208 +1,128 @@
-import { useAppStore } from '../store';
 import { useEffect } from 'react';
-import { LEARNING_MODULES } from '../data/modules';
-import { Zap, BookOpen, Box, Share2, BarChart3, Award } from 'lucide-react';
+import { BookOpen, ClipboardCheck, Cog, Network } from 'lucide-react';
+import { useAuth } from '../auth/AuthProvider';
+import { LEARNING_MODULES, WEEK_1_MODULE } from '../data/modules';
+import { useAppStore } from '../store';
+import { Page } from '../types';
+
+const quizCount = LEARNING_MODULES.reduce(
+  (count, module) => count + module.lessons.filter((lesson) => lesson.quiz).length,
+  0,
+);
 
 export default function HomePage() {
-  const { setCurrentPage } = useAppStore();
+  const { profile } = useAuth();
+  const setCurrentPage = useAppStore((state) => state.setCurrentPage);
+  const progress = useAppStore((state) => state.studentProgress);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const features = [
-    {
-      icon: Box,
-      title: '3D Engine Visualization',
-      description: 'Interactive 360° view of the ME-C engine with component highlighting and detachable parts',
-    },
-    {
-      icon: BookOpen,
-      title: '8 Interactive Modules',
-      description: 'Comprehensive lessons covering fuel injection, control systems, sensors, and more',
-    },
-    {
-      icon: Share2,
-      title: 'System Explorer',
-      description: 'Animated system flow diagrams showing how ME-C components interact',
-    },
-    {
-      icon: Zap,
-      title: 'Live Simulations',
-      description: 'Watch animated demonstrations of engine processes and control sequences',
-    },
-    {
-      icon: BarChart3,
-      title: 'Progress Tracking',
-      description: 'Monitor your learning progress, quiz scores, and module completion',
-    },
-    {
-      icon: Award,
-      title: 'Achievements & Badges',
-      description: 'Earn badges as you master different aspects of ME-C technology',
-    },
-  ];
+  const openPage = (page: Page) => setCurrentPage(page);
+  const displayName = profile?.display_name?.trim() || 'Learner';
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-20">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-5xl lg:text-6xl font-bold mb-4">
-                  <span className="glow-text">PPD</span>
-                </h1>
-                <h2 className="text-3xl lg:text-4xl font-bold text-light-gray mb-4">
-                  POWER PLANT DIESEL
-                </h2>
-              </div>
+    <div className="min-h-screen py-8 sm:py-12">
+      <div className="max-w-6xl mx-auto px-4 space-y-8">
+        <header className="glass-panel p-6 sm:p-8">
+          <p className="text-sm font-semibold uppercase tracking-wide text-cyan">
+            Power Plant Diesel · Learning Dashboard
+          </p>
+          <h1 className="heading-title mt-2">Welcome, {displayName}</h1>
+          <p className="text-light-gray mt-2">
+            Continue your Week 1 course or open an engine learning tool.
+          </p>
+        </header>
 
-              <p className="text-lg text-light-gray leading-relaxed">
-                Welcome to an interactive learning platform designed specifically for maritime engineering students. Learn the MAN B&W ME-C electronically controlled marine engine through immersive 3D visualization, detailed system analysis, and comprehensive interactive lessons.
-              </p>
-
-              <div className="space-y-3">
-                <p className="text-cyan font-semibold flex items-center gap-2">
-                  <span>🚢</span> Emerging Technologies in the Maritime Industry
-                </p>
-                <p className="text-cyan font-semibold flex items-center gap-2">
-                  <span>⚙️</span> Electronic Engine Control Mastery
-                </p>
-                <p className="text-cyan font-semibold flex items-center gap-2">
-                  <span>🔬</span> Virtual Engine Room Laboratory
-                </p>
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button
-                  onClick={() => setCurrentPage('engine-lab')}
-                  className="button-primary text-lg px-6 py-3"
-                >
-                  Enter 3D Engine Lab
-                </button>
-                <button
-                  onClick={() => setCurrentPage('modules')}
-                  className="button-secondary text-lg px-6 py-3"
-                >
-                  Start Learning
-                </button>
-              </div>
-            </div>
-
-            <div className="hidden lg:block">
-              <div className="glass-panel p-8 text-center space-y-4">
-                <div className="text-7xl animate-float">⚙️</div>
-                <h3 className="text-2xl font-bold glow-text">Virtual ME-C Engine</h3>
-                <p className="text-light-gray">
-                  Explore every component, understand the control flow, and master electronically controlled engine technology.
-                </p>
-                <div className="pt-4">
-                  <div className="text-4xl font-bold glow-text mb-2">{LEARNING_MODULES.length}</div>
-                  <p className="text-cyan">Interactive Learning Modules</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Core Concept Section */}
-      <section className="py-16 bg-deep-blue/50 border-y border-cyan/20">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="heading-title text-center mb-12">The Learning Journey</h2>
-
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-4 text-center">
-            <div className="flex-1">
-              <div className="text-3xl mb-2">📖</div>
-              <div className="font-bold text-cyan">LEARN</div>
-              <p className="text-sm text-light-gray">Understand concepts</p>
-            </div>
-            <div className="hidden lg:block text-2xl text-cyan/50">→</div>
-
-            <div className="flex-1">
-              <div className="text-3xl mb-2">👁️</div>
-              <div className="font-bold text-cyan">SEE</div>
-              <p className="text-sm text-light-gray">Visualize components</p>
-            </div>
-            <div className="hidden lg:block text-2xl text-cyan/50">→</div>
-
-            <div className="flex-1">
-              <div className="text-3xl mb-2">🔍</div>
-              <div className="font-bold text-cyan">EXPLORE</div>
-              <p className="text-sm text-light-gray">Interact with 3D</p>
-            </div>
-            <div className="hidden lg:block text-2xl text-cyan/50">→</div>
-
-            <div className="flex-1">
-              <div className="text-3xl mb-2">🎯</div>
-              <div className="font-bold text-cyan">UNDERSTAND</div>
-              <p className="text-sm text-light-gray">Grasp functionality</p>
-            </div>
-            <div className="hidden lg:block text-2xl text-cyan/50">→</div>
-
-            <div className="flex-1">
-              <div className="text-3xl mb-2">⚡</div>
-              <div className="font-bold text-cyan">ASSESS</div>
-              <p className="text-sm text-light-gray">Test knowledge</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="heading-title text-center mb-12">Platform Features</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, idx) => {
-              const Icon = feature.icon;
-              return (
-                <div key={idx} className="card space-y-4">
-                  <Icon className="w-8 h-8 text-cyan" />
-                  <h3 className="text-lg font-bold text-cyan">{feature.title}</h3>
-                  <p className="text-light-gray text-sm">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Call to Action */}
-      <section className="py-16 bg-deep-blue/50 border-t border-cyan/20">
-        <div className="max-w-6xl mx-auto px-4 text-center space-y-8">
-          <div>
-            <h2 className="heading-title">Ready to Dive In?</h2>
-            <p className="text-light-gray text-lg max-w-2xl mx-auto">
-              Choose your path: Start with interactive lessons to build foundation, explore the 3D engine for visual learning, or jump to the system explorer to see how everything connects.
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <article className="glass-panel p-6 sm:p-8 lg:col-span-2">
+            <p className="text-sm text-cyan font-semibold">CURRENT COURSE</p>
+            <h2 className="heading-section mt-2">{WEEK_1_MODULE.title}</h2>
+            <p className="text-light-gray mt-3">{WEEK_1_MODULE.description}</p>
+            <p className="text-sm text-light-gray mt-4">
+              {WEEK_1_MODULE.lessons.length} lessons available
             </p>
-          </div>
+            <button
+              type="button"
+              onClick={() => openPage('modules')}
+              className="button-primary mt-6"
+            >
+              <span className="inline-flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Open Week 1 lessons
+              </span>
+            </button>
+          </article>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+          <aside className="card">
+            <h2 className="heading-subsection">Your learning this session</h2>
+            <div className="space-y-4 mt-5">
+              <div>
+                <p className="text-light-gray text-sm">Quiz attempts</p>
+                <p className="text-3xl font-bold glow-text">{progress.quizzesCompleted}</p>
+              </div>
+              <div>
+                <p className="text-light-gray text-sm">Components explored</p>
+                <p className="text-3xl font-bold glow-text">{progress.componentsExplored.length}</p>
+              </div>
+            </div>
+            <p className="text-light-gray/70 text-xs mt-5">
+              These progress indicators are temporary and reset when you sign out or refresh.
+            </p>
+          </aside>
+        </section>
+
+        <section>
+          <h2 className="heading-section mb-4">Learning tools</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <button
-              onClick={() => setCurrentPage('modules')}
-              className="button-primary text-lg px-8 py-4"
+              type="button"
+              onClick={() => openPage('assessments')}
+              className="card text-left hover:border-cyan/50 transition-colors"
             >
-              📚 Learning Modules
+              <ClipboardCheck className="w-6 h-6 text-cyan mb-3" />
+              <span className="block font-semibold text-cyan">Assessments</span>
+              <span className="block text-sm text-light-gray mt-1">
+                {quizCount} existing quizzes and Week 1 assessment references
+              </span>
             </button>
             <button
-              onClick={() => setCurrentPage('engine-lab')}
-              className="button-primary text-lg px-8 py-4"
+              type="button"
+              onClick={() => openPage('engine-lab')}
+              className="card text-left hover:border-cyan/50 transition-colors"
             >
-              ⚙️ 3D Engine Lab
+              <Cog className="w-6 h-6 text-cyan mb-3" />
+              <span className="block font-semibold text-cyan">3D Engine Lab</span>
+              <span className="block text-sm text-light-gray mt-1">
+                Explore the interactive engine
+              </span>
             </button>
             <button
-              onClick={() => setCurrentPage('components')}
-              className="button-secondary text-lg px-8 py-4"
+              type="button"
+              onClick={() => openPage('components')}
+              className="card text-left hover:border-cyan/50 transition-colors"
             >
-              📋 Component Library
+              <BookOpen className="w-6 h-6 text-cyan mb-3" />
+              <span className="block font-semibold text-cyan">Components</span>
+              <span className="block text-sm text-light-gray mt-1">
+                Browse engine component information
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openPage('system-explorer')}
+              className="card text-left hover:border-cyan/50 transition-colors"
+            >
+              <Network className="w-6 h-6 text-cyan mb-3" />
+              <span className="block font-semibold text-cyan">System Explorer</span>
+              <span className="block text-sm text-light-gray mt-1">
+                Follow how engine systems interact
+              </span>
             </button>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

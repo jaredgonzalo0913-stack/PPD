@@ -6,6 +6,7 @@ interface AppState {
   setCurrentPage: (page: Page) => void;
   studentProgress: StudentProgress;
   updateProgress: (updates: Partial<StudentProgress>) => void;
+  resetStudentProgress: () => void;
   selectedComponent: Component | null;
   setSelectedComponent: (component: Component | null) => void;
   engineLabMode: 'normal' | 'exploded' | 'cutaway' | 'component';
@@ -24,6 +25,7 @@ export const useAppStore = create<AppState>((set) => ({
   
   studentProgress: {
     moduleScores: {},
+    quizScores: {},
     componentsExplored: [],
     quizzesCompleted: 0,
     totalXP: 0,
@@ -34,6 +36,18 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       studentProgress: { ...state.studentProgress, ...updates },
     })),
+  resetStudentProgress: () =>
+    set({
+      studentProgress: {
+        moduleScores: {},
+        quizScores: {},
+        componentsExplored: [],
+        quizzesCompleted: 0,
+        totalXP: 0,
+        achievements: [],
+        lessonsCompleted: 0,
+      },
+    }),
   
   selectedComponent: null,
   setSelectedComponent: (component) => set({ selectedComponent: component }),

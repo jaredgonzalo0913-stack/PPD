@@ -4,12 +4,16 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import Quiz from '../components/Quiz';
 import { useAppStore } from '../store';
 
-const MODULES = [WEEK_1_MODULE, ...LEARNING_MODULES];
+const MODULES = [WEEK_1_MODULE];
+const AVAILABLE_QUIZ_COUNT = LEARNING_MODULES.reduce(
+  (count, module) => count + module.lessons.filter((lesson) => lesson.quiz).length,
+  0,
+);
 
 export default function ModulesPage() {
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [activeLesson, setActiveLesson] = useState<string | null>(null);
-  const { updateProgress, studentProgress } = useAppStore();
+  const { updateProgress, studentProgress, setCurrentPage } = useAppStore();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -100,24 +104,6 @@ export default function ModulesPage() {
                       </div>
                     ))}
 
-                    {module.assessments && module.assessments.length > 0 && (
-                      <div className="border-t border-cyan/20 pt-6 space-y-4">
-                        <h3 className="text-lg font-bold text-cyan">📝 Formative Assessments</h3>
-                        {module.assessments.map((assessment) => (
-                          <section key={assessment.id} className="bg-white/5 p-4 rounded-lg space-y-2 border border-cyan/20">
-                            <h4 className="font-semibold text-cyan">{assessment.title}</h4>
-                            <p className="text-light-gray">{assessment.instruction}</p>
-                            {assessment.rubric && <p className="text-light-gray">{assessment.rubric}</p>}
-                            {assessment.platform && <p className="text-light-gray"><span className="font-semibold text-cyan">Platform:</span> {assessment.platform}</p>}
-                            {assessment.cbt && <p className="text-light-gray">{assessment.cbt}</p>}
-                            {assessment.practicalAssessment && <p className="text-light-gray">{assessment.practicalAssessment}</p>}
-                            <p className="text-light-gray"><span className="font-semibold text-cyan">Required submission details:</span> {assessment.requiredSubmissionDetails}</p>
-                            <p className="text-light-gray"><span className="font-semibold text-cyan">Example filename:</span> {assessment.exampleFilename}</p>
-                            {assessment.exampleDetails && <p className="text-light-gray">{assessment.exampleDetails}</p>}
-                          </section>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -127,43 +113,20 @@ export default function ModulesPage() {
           {/* Statistics Sidebar */}
           <div className="space-y-4">
             <div className="card">
-              <h3 className="heading-subsection text-center">📊 Your Progress</h3>
-              <div className="space-y-4 pt-4">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-cyan text-sm">Modules Completed</span>
-                    <span className="font-bold text-cyan">
-                      {Object.keys(studentProgress.moduleScores).length}/8
-                    </span>
-                  </div>
-                  <div className="h-2 bg-steel-gray rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-cyan to-cyan-dark"
-                      style={{ width: `${(Object.keys(studentProgress.moduleScores).length / 8) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-cyan text-sm">Total XP Earned</span>
-                    <span className="font-bold text-cyan">{studentProgress.totalXP}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-cyan text-sm">Quiz Attempts</span>
-                    <span className="font-bold text-cyan">{studentProgress.quizzesCompleted}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-cyan text-sm">Lessons Done</span>
-                    <span className="font-bold text-cyan">{studentProgress.lessonsCompleted}/24</span>
-                  </div>
-                </div>
+              <h3 className="heading-subsection">Week 1 course</h3>
+              <div className="space-y-3 pt-4 text-sm text-light-gray">
+                <p>{WEEK_1_MODULE.lessons.length} existing lessons</p>
+                <p>{AVAILABLE_QUIZ_COUNT} existing quizzes are available in Assessments.</p>
+                <p>
+                  {Object.keys(studentProgress.quizScores).length} quizzes scored in this session.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage('assessments')}
+                  className="button-secondary w-full"
+                >
+                  Open Assessments
+                </button>
               </div>
             </div>
 
