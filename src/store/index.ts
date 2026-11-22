@@ -3,7 +3,12 @@ import { Page, StudentProgress, Component } from '../types';
 
 interface AppState {
   currentPage: Page;
+  navigationHistory: Page[];
+  navigationGuards: Record<string, () => boolean>;
   setCurrentPage: (page: Page) => void;
+  goToPreviousPage: () => void;
+  returnToPage: (page: Page) => void;
+  setNavigationGuard: (key: string, guard: (() => boolean) | null) => void;
   studentProgress: StudentProgress;
   updateProgress: (updates: Partial<StudentProgress>) => void;
   resetStudentProgress: () => void;
@@ -19,9 +24,61 @@ interface AppState {
   setGuidedTourStep: (step: number) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const canLeaveCurrentPage = (state: Pick<AppState, 'navigationGuards'>) =>
+  Object.values(state.navigationGuards).every((guard) => guard());
+
+export const useAppStore = create<AppState>((set, get) => ({
   currentPage: 'home',
-  setCurrentPage: (page) => set({ currentPage: page }),
+  navigationHistory: [],
+  navigationGuards: {},
+  setCurrentPage: (page) => {
+    const state = get();
+    if (state.currentPage === page || !canLeaveCurrentPage(state)) return;
+    set((current) => ({
+      currentPage: page,
+      navigationHistory: [...current.navigationHistory, current.currentPage].slice(-50),
+      selectedComponent: current.currentPage === 'components' ? null : current.selectedComponent,
+    }));
+  },
+  goToPreviousPage: () => {
+    const current = get();
+    if (current.navigationHistory.length === 0 || !canLeaveCurrentPage(current)) return;
+    set((state) => {
+      if (state.navigationHistory.length === 0) return state;
+      const navigationHistory = [...state.navigationHistory];
+      const currentPage = navigationHistory[navigationHistory.length - 1];
+      if (!currentPage) return state;
+      navigationHistory.pop();
+      return {
+        currentPage,
+        navigationHistory,
+        selectedComponent: state.currentPage === 'components' ? null : state.selectedComponent,
+      };
+    });
+  },
+  returnToPage: (page) => {
+    const current = get();
+    if (current.currentPage === page || !canLeaveCurrentPage(current)) return;
+    set((state) => {
+      const selectedComponent = state.currentPage === 'components' ? null : state.selectedComponent;
+      const history = state.navigationHistory;
+      if (history[history.length - 1] === page) {
+        return { currentPage: page, navigationHistory: history.slice(0, -1), selectedComponent };
+      }
+      return {
+        currentPage: page,
+        navigationHistory: [...history, state.currentPage].slice(-50),
+        selectedComponent,
+      };
+    });
+  },
+  setNavigationGuard: (key, guard) =>
+    set((state) => {
+      const navigationGuards = { ...state.navigationGuards };
+      if (guard) navigationGuards[key] = guard;
+      else delete navigationGuards[key];
+      return { navigationGuards };
+    }),
   
   studentProgress: {
     moduleScores: {},

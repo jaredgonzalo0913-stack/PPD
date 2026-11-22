@@ -3,10 +3,12 @@ import { MEC_COMPONENTS, COMPONENT_CATEGORIES } from '../data/components';
 import ComponentCard from '../components/ComponentCard';
 import ComponentPanel from '../components/ComponentPanel';
 import { useAppStore } from '../store';
+import { clearDeepLink } from '../utils/deepLinks';
 
 export default function ComponentsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const { studentProgress, updateProgress } = useAppStore();
+  const returnToPage = useAppStore((state) => state.returnToPage);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -27,6 +29,18 @@ export default function ComponentsPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4">
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              clearDeepLink();
+              returnToPage('engine-lab');
+            }}
+            className="button-secondary"
+          >
+            ← Back to Engine Lab
+          </button>
+        </div>
         <h1 className="heading-title text-center mb-12">📋 ME-C Component Library</h1>
 
         {/* Category Filter */}

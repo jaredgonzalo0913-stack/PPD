@@ -1,137 +1,263 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store';
-import { RotateCcw, Maximize2, Loader } from 'lucide-react';
+import { clearDeepLink } from '../utils/deepLinks';
+
+type SimulatorMessage =
+  | { channel: 'ppd-engine-simulator'; type: 'set-view'; payload: { mode: 'normal' | 'cutaway' | 'exploded' } }
+  | { channel: 'ppd-engine-simulator'; type: 'set-auto-rotation'; payload: { enabled: boolean } }
+  | { channel: 'ppd-engine-simulator'; type: 'set-guided-lessons'; payload: { active: boolean } }
+  | { channel: 'ppd-engine-simulator'; type: 'reset-view' }
+  | { channel: 'ppd-engine-simulator'; type: 'camera-preset'; payload: { preset: 'front' | 'rear' | 'top' | 'side' } };
 
 export default function EngineLabPage() {
-  const { engineLabMode, setEngineLabMode, auto360Rotation, setAuto360Rotation, guidedTourActive, setGuidedTourActive } = useAppStore();
-  const [canvasReady, setCanvasReady] = useState(false);
+  const { engineLabMode, auto360Rotation, guidedTourActive } = useAppStore();
+  const setCurrentPage = useAppStore((state) => state.setCurrentPage);
+  const goToPreviousPage = useAppStore((state) => state.goToPreviousPage);
+  const hasPreviousPage = useAppStore((state) => state.navigationHistory.length > 0);
+  const [fullscreenExperience, setFullscreenExperience] = useState(false);
+  const [nativeFullscreen, setNativeFullscreen] = useState(false);
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const simulatorRef = useRef<HTMLIFrameElement>(null);
+  const simulatorContainerRef = useRef<HTMLDivElement>(null);
+  const experienceRef = useRef<HTMLDivElement>(null);
+  const [simulatorReady, setSimulatorReady] = useState(false);
+  const [simulatorWidth, setSimulatorWidth] = useState(0);
+
+  const sendSimulatorMessage = useCallback((message: SimulatorMessage) => {
+    simulatorRef.current?.contentWindow?.postMessage(message, window.location.origin);
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    setCanvasReady(true);
   }, []);
 
+  useEffect(() => {
+    const syncFullscreenState = () => setNativeFullscreen(Boolean(document.fullscreenElement));
+    const handleFullscreenEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !document.fullscreenElement) return;
+      void document.exitFullscreen().catch(() => {
+        setFullscreenError('The browser could not exit native fullscreen. Use the fullscreen button to exit.');
+      });
+    };
+    setFullscreenSupported(
+      document.fullscreenEnabled && typeof experienceRef.current?.requestFullscreen === 'function',
+    );
+    syncFullscreenState();
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    document.addEventListener('keydown', handleFullscreenEscape);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreenState);
+      document.removeEventListener('keydown', handleFullscreenEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = simulatorContainerRef.current;
+    if (!container) return;
+    const updateWidth = () => setSimulatorWidth(container.clientWidth);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleSimulatorMessage = (event: MessageEvent<unknown>) => {
+      if (
+        event.origin !== window.location.origin
+        || event.source !== simulatorRef.current?.contentWindow
+        || !event.data
+        || typeof event.data !== 'object'
+        || Array.isArray(event.data)
+        || !('channel' in event.data)
+        || event.data.channel !== 'ppd-engine-simulator'
+        || !('type' in event.data)
+        || event.data.type !== 'ready'
+      ) return;
+      setSimulatorReady(true);
+    };
+
+    window.addEventListener('message', handleSimulatorMessage);
+    return () => window.removeEventListener('message', handleSimulatorMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!simulatorReady) return;
+    const mode = engineLabMode === 'cutaway' || engineLabMode === 'exploded'
+      ? engineLabMode
+      : 'normal';
+    sendSimulatorMessage({
+      channel: 'ppd-engine-simulator',
+      type: 'set-view',
+      payload: { mode },
+    });
+    sendSimulatorMessage({
+      channel: 'ppd-engine-simulator',
+      type: 'set-auto-rotation',
+      payload: { enabled: auto360Rotation },
+    });
+    sendSimulatorMessage({
+      channel: 'ppd-engine-simulator',
+      type: 'set-guided-lessons',
+      payload: { active: guidedTourActive },
+    });
+  }, [auto360Rotation, engineLabMode, guidedTourActive, sendSimulatorMessage, simulatorReady]);
+
+  const enterFullscreenExperience = () => {
+    setFullscreenError(null);
+    setFullscreenExperience(true);
+  };
+
+  const exitFullscreenExperience = async () => {
+    setFullscreenExperience(false);
+    setFullscreenError(null);
+    if (!document.fullscreenElement) return;
+    try {
+      await document.exitFullscreen();
+    } catch {
+      setFullscreenError('The browser could not exit native fullscreen. Press Escape to leave it.');
+    }
+  };
+
+  const toggleNativeFullscreen = async () => {
+    setFullscreenError(null);
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (experienceRef.current?.requestFullscreen) {
+        await experienceRef.current.requestFullscreen();
+      }
+    } catch {
+      setFullscreenError('The browser could not change native fullscreen mode.');
+    }
+  };
+
   return (
-    <div className="min-h-screen py-12">
-      <div className="max-w-7xl mx-auto px-4">
-        <h1 className="heading-title text-center mb-6">⚙️ 3D ME-C Engine Lab</h1>
-        <p className="text-center text-light-gray mb-12">
-          Explore the MAN B&W ME-C electronically controlled marine engine in interactive 3D. Rotate, zoom, inspect components, and learn how they work together.
-        </p>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* 3D Viewer Area */}
-          <div className="lg:col-span-3">
-            <div className="glass-panel p-6">
-              {canvasReady ? (
-                <div className="w-full aspect-video bg-gradient-to-br from-navy to-deep-blue rounded-lg border border-cyan/30 flex items-center justify-center relative overflow-hidden group">
-                  <div className="absolute inset-0 opacity-30">
-                    <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-cyan/20 rounded-full blur-3xl animate-pulse"></div>
-                    <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-cyan-dark/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-                  </div>
-                  <div className="relative z-10 text-center space-y-4">
-                    <div className="text-6xl animate-float">⚙️</div>
-                    <h2 className="text-2xl font-bold glow-text">3D Engine Viewer</h2>
-                    <p className="text-light-gray">Advanced 3D visualization coming with Three.js integration</p>
-                    <div className="flex gap-4 justify-center pt-4">
-                      <div className="flex flex-col items-center">
-                        <span className="text-3xl">🖱️</span>
-                        <span className="text-xs text-cyan mt-1">Drag to Rotate</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-3xl">🔍</span>
-                        <span className="text-xs text-cyan mt-1">Scroll to Zoom</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-3xl">👆</span>
-                        <span className="text-xs text-cyan mt-1">Click Components</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+    <div
+      ref={experienceRef}
+      className={fullscreenExperience
+        ? 'fixed inset-0 z-[100] flex h-[100dvh] w-screen flex-col overflow-hidden bg-navy'
+        : 'min-h-screen py-8'}
+    >
+      <div className={fullscreenExperience ? 'flex min-h-0 flex-1 flex-col' : 'max-w-7xl mx-auto px-4'}>
+        {fullscreenExperience ? (
+          <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-cyan/30 bg-navy px-3 py-2 sm:px-4">
+            <button type="button" onClick={() => void exitFullscreenExperience()} className="button-secondary">
+              ← Back to Engine Lab
+            </button>
+            <div className="flex items-center gap-3">
+              {fullscreenSupported ? (
+                <button type="button" onClick={() => void toggleNativeFullscreen()} className="button-secondary">
+                  {nativeFullscreen ? 'Exit Browser Fullscreen' : 'Enter Browser Fullscreen'}
+                </button>
               ) : (
-                <div className="w-full aspect-video bg-steel-gray rounded-lg flex items-center justify-center">
-                  <Loader className="w-8 h-8 text-cyan animate-spin" />
-                </div>
+                <span className="text-xs text-light-gray">Browser fullscreen unavailable</span>
               )}
+              <span className="hidden text-xs text-light-gray sm:inline">
+                Escape exits browser fullscreen; Back to Engine Lab exits this view.
+              </span>
             </div>
+            {fullscreenError && (
+              <p role="alert" className="w-full text-sm text-red-300">{fullscreenError}</p>
+            )}
           </div>
-
-          {/* Control Panel */}
-          <div className="space-y-4">
-            <div className="glass-panel p-6">
-              <h2 className="heading-subsection mb-4">🎮 Controls</h2>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-semibold text-cyan block mb-2">View Mode</label>
-                  <select
-                    value={engineLabMode}
-                    onChange={(e) => setEngineLabMode(e.target.value as any)}
-                    className="w-full p-2 bg-steel-gray border border-cyan/30 rounded text-white font-semibold"
+        ) : (
+          <>
+            <header className="glass-panel mb-6 p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan/70">
+                    Interactive learning · 3D Engine Lab
+                  </p>
+                  <h1 className="mt-1 text-2xl font-bold text-cyan sm:text-3xl">⚙️ Engine Lab</h1>
+                  <p className="mt-2 max-w-3xl text-light-gray">
+                    Explore the ME-Type main engine simulator and its interactive engine and system controls.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearDeepLink();
+                      goToPreviousPage();
+                    }}
+                    disabled={!hasPreviousPage}
+                    className="button-secondary disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value="normal">Normal View</option>
-                    <option value="exploded">Exploded View</option>
-                    <option value="cutaway">Cutaway View</option>
-                    <option value="component">Component Mode</option>
-                  </select>
+                    ← Back to Previous Page
+                  </button>
+                  <button type="button" onClick={enterFullscreenExperience} className="button-primary">
+                    Full Screen Simulator
+                  </button>
                 </div>
-
-                <div className="flex items-center gap-3 p-3 bg-cyan/10 border border-cyan/30 rounded-lg cursor-pointer hover:bg-cyan/20 transition-colors"
-                  onClick={() => setAuto360Rotation(!auto360Rotation)}>
-                  <input 
-                    type="checkbox" 
-                    checked={auto360Rotation}
-                    readOnly
-                    className="w-4 h-4 cursor-pointer"
-                  />
-                  <label className="text-sm font-semibold text-cyan cursor-pointer flex-1">
-                    Auto 360° Rotation
-                  </label>
-                </div>
-
+              </div>
+              <div className="mt-5 grid gap-3 border-t border-cyan/20 pt-5 sm:grid-cols-2">
                 <button
-                  onClick={() => setGuidedTourActive(!guidedTourActive)}
-                  className={`w-full py-2 px-4 rounded-lg font-semibold transition-all ${
-                    guidedTourActive
-                      ? 'bg-cyan text-navy'
-                      : 'bg-steel-gray text-cyan hover:bg-steel-gray/80 border border-cyan/30'
-                  }`}
+                  type="button"
+                  onClick={() => {
+                    clearDeepLink();
+                    setCurrentPage('components');
+                  }}
+                  className="rounded-lg border border-cyan/20 bg-white/5 p-4 text-left transition-colors hover:border-cyan/50 hover:bg-cyan/10"
                 >
-                  🗺️ {guidedTourActive ? 'Stop Tour' : 'Guided Tour'}
+                  <span className="block font-semibold text-cyan">Browse component library →</span>
+                  <span className="mt-1 block text-sm text-light-gray">
+                    Filter the ME-C components by category and open each component&apos;s details.
+                  </span>
                 </button>
-
-                <button className="w-full py-2 px-4 bg-steel-gray text-cyan hover:bg-steel-gray/80 border border-cyan/30 rounded-lg font-semibold transition-all">
-                  ↻ Reset View
-                </button>
-              </div>
-            </div>
-
-            <div className="glass-panel p-6">
-              <h2 className="heading-subsection mb-4">📌 Quick Actions</h2>
-              <div className="space-y-2">
-                <button className="w-full p-2 text-sm bg-cyan/20 text-cyan hover:bg-cyan/30 rounded border border-cyan/30 font-semibold transition-all">
-                  Front View
-                </button>
-                <button className="w-full p-2 text-sm bg-cyan/20 text-cyan hover:bg-cyan/30 rounded border border-cyan/30 font-semibold transition-all">
-                  Rear View
-                </button>
-                <button className="w-full p-2 text-sm bg-cyan/20 text-cyan hover:bg-cyan/30 rounded border border-cyan/30 font-semibold transition-all">
-                  Top View
-                </button>
-                <button className="w-full p-2 text-sm bg-cyan/20 text-cyan hover:bg-cyan/30 rounded border border-cyan/30 font-semibold transition-all">
-                  Side View
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearDeepLink();
+                    setCurrentPage('system-explorer');
+                  }}
+                  className="rounded-lg border border-cyan/20 bg-white/5 p-4 text-left transition-colors hover:border-cyan/50 hover:bg-cyan/10"
+                >
+                  <span className="block font-semibold text-cyan">Explore engine systems →</span>
+                  <span className="mt-1 block text-sm text-light-gray">
+                    Follow the ME-C control flows and the control-system architecture.
+                  </span>
                 </button>
               </div>
-            </div>
+              {fullscreenError && (
+                <p role="alert" className="mt-4 text-sm text-red-300">{fullscreenError}</p>
+              )}
+            </header>
+          </>
+        )}
 
-            <div className="glass-panel p-6">
-              <h2 className="heading-subsection mb-4">ℹ️ Info</h2>
-              <p className="text-light-gray text-sm">
-                Select components to view detailed information. Use the guided tour for an interactive walkthrough of the ME-C system.
-              </p>
+        <div className={fullscreenExperience
+          ? 'grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)]'
+          : 'grid grid-cols-1 gap-6'}
+        >
+          {/* 3D Viewer Area */}
+          <div className={fullscreenExperience ? 'h-full min-h-0 min-w-0' : 'w-full'}>
+            <div className={fullscreenExperience ? 'h-full min-h-0' : 'glass-panel p-6'}>
+              <div
+                id="external-engine-model"
+                ref={simulatorContainerRef}
+                className={fullscreenExperience
+                  ? 'h-full w-full overflow-hidden bg-navy'
+                  : 'w-full overflow-hidden rounded-lg border border-cyan/30 bg-navy'}
+              >
+                <iframe
+                  ref={simulatorRef}
+                  title="Interactive ME-Type Main Engine Simulator"
+                  src="/engine-simulator/index.html"
+                  className="block w-full border-0"
+                  style={fullscreenExperience
+                    ? { height: '100%', minHeight: 0 }
+                    : {
+                        height: simulatorWidth > 900 ? 'min(85vh, 1000px)' : '1100px',
+                        minHeight: '760px',
+                      }}
+                  onLoad={() => setSimulatorReady(true)}
+                />
+              </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>

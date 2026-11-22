@@ -8,6 +8,7 @@ import {
   UserRole,
 } from '../types';
 import { getRoleLabel } from '../utils/roleLabels';
+import { compareCadets } from '../utils/cadets';
 
 type AssignableRole = Extract<UserRole, 'student' | 'instructor'>;
 
@@ -57,7 +58,13 @@ export default function AdminAccountManagementPage() {
           `Unable to load profiles. Check the current Supabase permissions. ${profilesResult.error.message}`,
         );
       } else {
-        setProfiles(profilesResult.data ?? []);
+        setProfiles(
+          [...(profilesResult.data ?? [])].sort((first, second) =>
+            compareCadets(
+              { id: first.id, displayName: first.display_name },
+              { id: second.id, displayName: second.display_name },
+            )),
+        );
       }
 
       if (requestsResult.error) {

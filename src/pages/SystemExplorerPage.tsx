@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
 import { MEC_COMPONENTS } from '../data/components';
 import { ArrowRight } from 'lucide-react';
+import { useAppStore } from '../store';
+import { clearDeepLink } from '../utils/deepLinks';
 
 export default function SystemExplorerPage() {
+  const returnToPage = useAppStore((state) => state.returnToPage);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -28,6 +32,18 @@ export default function SystemExplorerPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-6xl mx-auto px-4">
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              clearDeepLink();
+              returnToPage('engine-lab');
+            }}
+            className="button-secondary"
+          >
+            ← Back to Engine Lab
+          </button>
+        </div>
         <h1 className="heading-title text-center mb-12">🔗 System Explorer</h1>
 
         <div className="space-y-12">

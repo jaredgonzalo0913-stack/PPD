@@ -6,16 +6,39 @@ import { useAppStore } from '../store';
 const RECOVERY_REDIRECT = `${window.location.origin}/?flow=password-recovery`;
 const MIN_PASSWORD_LENGTH = 8;
 
-const recoveryUrlError = () => {
-  const params = new URLSearchParams(window.location.search);
-  const errorCode = params.get('error_code');
-  const description = params.get('error_description');
+const recoveryUrlError = (): string | null => {
+  const query = new URLSearchParams(window.location.search);
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const errorCode = query.get('error_code')
+    ?? fragment.get('error_code')
+    ?? query.get('error')
+    ?? fragment.get('error');
 
-  if (!errorCode && !description) return null;
-  if (errorCode === 'otp_expired') {
+  if (!errorCode && !query.has('error_description') && !fragment.has('error_description')) {
+    return null;
+  }
+
+  if (errorCode === 'otp_expired' || errorCode === 'token_expired') {
     return 'This password recovery link has expired or has already been used. Request a new link below.';
   }
+  if (errorCode === 'access_denied' || errorCode === 'unauthorized') {
+    return 'This password recovery link is invalid or no longer authorized. Request a new link below.';
+  }
   return 'This password recovery link is invalid or expired. Request a new link below.';
+};
+
+const isRecoverySessionError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+
+  const authError = error as { code?: unknown; status?: unknown };
+  const code = typeof authError.code === 'string' ? authError.code.toLowerCase() : '';
+  return (
+    ['otp_expired', 'token_expired', 'session_not_found', 'refresh_token_not_found',
+      'invalid_grant', 'invalid_token', 'bad_jwt', 'unauthorized', 'user_not_found']
+      .includes(code) ||
+    authError.status === 401 ||
+    authError.status === 403
+  );
 };
 
 export default function PasswordRecoveryPage() {
@@ -33,9 +56,12 @@ export default function PasswordRecoveryPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const actionInProgress = useRef(false);
-  const [error, setError] = useState<string | null>(recoveryUrlError());
+  const [recoveryLinkError] = useState(recoveryUrlError);
+  const [showRecoveryRequest, setShowRecoveryRequest] = useState(Boolean(recoveryLinkError));
+  const [error, setError] = useState<string | null>(recoveryLinkError);
   const [message, setMessage] = useState<string | null>(null);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const canUpdatePassword = Boolean(session && recoverySession && !recoveryLinkError);
 
   const handleRecoveryRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,7 +97,7 @@ export default function PasswordRecoveryPage() {
     setError(null);
     setMessage(null);
 
-    if (!recoverySession) {
+    if (!session || !recoverySession || recoveryLinkError) {
       setError('A verified recovery link is required before changing your password.');
       return;
     }
@@ -90,7 +116,23 @@ export default function PasswordRecoveryPage() {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
-        setError(`Unable to update your password: ${updateError.message}`);
+        if (isRecoverySessionError(updateError)) {
+          clearRecoverySession();
+          setShowRecoveryRequest(true);
+          setEmail(session.user.email ?? '');
+          try {
+            await signOut();
+            setError('This recovery link is no longer valid. Request a new recovery email below.');
+          } catch {
+            setError(
+              'This recovery link is no longer valid. Sign out, then request a new recovery email below.',
+            );
+          }
+        } else {
+          setError(
+            'Unable to update your password. Check the password requirements and try again, or request a new recovery email below.',
+          );
+        }
         return;
       }
 
@@ -99,8 +141,23 @@ export default function PasswordRecoveryPage() {
       setPassword('');
       setConfirmPassword('');
     } catch (updateError) {
-      const detail = updateError instanceof Error ? ` ${updateError.message}` : '';
-      setError(`Unable to update your password.${detail}`);
+      if (isRecoverySessionError(updateError)) {
+        clearRecoverySession();
+        setShowRecoveryRequest(true);
+        setEmail(session.user.email ?? '');
+        try {
+          await signOut();
+          setError('This recovery link is no longer valid. Request a new recovery email below.');
+        } catch {
+          setError(
+            'This recovery link is no longer valid. Sign out, then request a new recovery email below.',
+          );
+        }
+      } else {
+        setError(
+          'Unable to update your password. Check the password requirements and try again, or request a new recovery email below.',
+        );
+      }
     } finally {
       actionInProgress.current = false;
       setBusy(false);
@@ -137,10 +194,12 @@ export default function PasswordRecoveryPage() {
         <div className="text-center mb-8">
           <div className="text-4xl font-bold glow-text mb-2">PPD</div>
           <h1 className="heading-section">
-            {recoverySession && !passwordUpdated ? 'Choose a new password' : 'Password recovery'}
+            {canUpdatePassword && !showRecoveryRequest && !passwordUpdated
+              ? 'Choose a new password'
+              : 'Password recovery'}
           </h1>
           <p className="text-light-gray">
-            {recoverySession && !passwordUpdated
+            {canUpdatePassword && !showRecoveryRequest && !passwordUpdated
               ? 'Set a new password for your account.'
               : 'Recover access to your PPD LMS account.'}
           </p>
@@ -157,7 +216,7 @@ export default function PasswordRecoveryPage() {
           </p>
         )}
 
-        {recoverySession && !passwordUpdated ? (
+        {canUpdatePassword && !passwordUpdated && !showRecoveryRequest ? (
           <form onSubmit={handlePasswordUpdate} className="space-y-5">
             <div>
               <label htmlFor="new-password" className="block text-sm font-semibold text-cyan mb-2">
@@ -217,6 +276,19 @@ export default function PasswordRecoveryPage() {
             <button type="submit" disabled={busy} className="button-primary w-full disabled:opacity-60">
               {busy ? 'Updating password...' : 'Update password'}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setMessage(null);
+                setEmail(session?.user.email ?? '');
+                setShowRecoveryRequest(true);
+              }}
+              disabled={busy}
+              className="w-full text-cyan hover:underline text-sm font-semibold disabled:opacity-60"
+            >
+              Request a new recovery email
+            </button>
           </form>
         ) : passwordUpdated ? (
           <button
@@ -246,6 +318,20 @@ export default function PasswordRecoveryPage() {
             <button type="submit" disabled={busy} className="button-primary w-full disabled:opacity-60">
               {busy ? 'Sending...' : 'Send recovery link'}
             </button>
+            {canUpdatePassword && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setMessage(null);
+                  setShowRecoveryRequest(false);
+                }}
+                disabled={busy}
+                className="w-full text-cyan hover:underline text-sm font-semibold disabled:opacity-60"
+              >
+                Return to password entry
+              </button>
+            )}
           </form>
         )}
 
