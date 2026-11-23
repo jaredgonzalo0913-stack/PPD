@@ -8,9 +8,10 @@ import { MEC_COMPONENTS } from '../data/components';
 import { supabase } from '../lib/supabase';
 import CourseCalendar, { CourseCalendarAssessment, toDateKey } from './CourseCalendar';
 import { clearDeepLink } from '../utils/deepLinks';
+import NotificationBell from './NotificationBell';
 
 type ScheduleAssessment = CourseCalendarAssessment;
-type HeaderPanel = 'search' | 'calendar' | 'account';
+type HeaderPanel = 'search' | 'calendar' | 'notifications' | 'account';
 
 const navItems: { id: Page; label: string }[] = [
   { id: 'home', label: 'Dashboard' },
@@ -252,6 +253,11 @@ export default function Navigation({
               {openPanel === 'calendar' && schedulePanel}
             </div>
 
+            <NotificationBell
+              open={openPanel === 'notifications'}
+              onOpenChange={(open) => setOpenPanel(open ? 'notifications' : null)}
+            />
+
             <div className="relative" data-header-panel>
               <button
                 type="button"
@@ -358,6 +364,10 @@ export default function Navigation({
               </button>
               {openPanel === 'calendar' && schedulePanel}
             </div>
+            <NotificationBell
+              open={openPanel === 'notifications'}
+              onOpenChange={(open) => setOpenPanel(open ? 'notifications' : null)}
+            />
             <p className="px-4 text-sm text-light-gray truncate">
               {user?.email} · {getRoleLabel(role)}
             </p>
