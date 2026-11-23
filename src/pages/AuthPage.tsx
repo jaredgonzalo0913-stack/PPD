@@ -2,8 +2,24 @@ import { FormEvent, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { useAppStore } from '../store';
+import useUnsavedChangesGuard from '../hooks/useUnsavedChangesGuard';
+import { clearDeepLink } from '../utils/deepLinks';
+import CadetDetailsFields from '../components/CadetDetailsFields';
+import {
+  CADET_REGISTRATION_FIELDS,
+  CadetDetailErrors,
+  CadetDetailField,
+  CadetDetails,
+  emptyCadetDetails,
+  normalizeCadetDetails,
+  normalizeRegistrationDisplayName,
+  toRegistrationMetadata,
+  validateCadetDetails,
+  validateRegistrationDisplayName,
+} from '../utils/cadetProfile';
 
 type AuthMode = 'sign-in' | 'register';
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function AuthPage() {
   const { error: sessionError, clearError } = useAuth();
@@ -14,9 +30,58 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [details, setDetails] = useState<CadetDetails>(emptyCadetDetails);
+  const [fieldErrors, setFieldErrors] = useState<CadetDetailErrors>({});
+  const hasUnsavedRegistration = Object.values(details).some((value) => value.trim().length > 0);
+  useUnsavedChangesGuard(
+    'registration-form',
+    hasUnsavedRegistration,
+    'You have unsaved registration details. Leave this page and discard them?',
+  );
+
+  const updateDetail = (field: CadetDetailField, value: string) => {
+    setDetails((current) => ({
+      ...current,
+      [field]: field === 'displayName' ? value.toUpperCase() : value,
+    }));
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    let cadetDetails: CadetDetails | null = null;
+    if (mode === 'register') {
+      const normalizedEmail = email.trim();
+      cadetDetails = {
+        ...normalizeCadetDetails(details),
+        displayName: normalizeRegistrationDisplayName(details.displayName),
+      };
+      const errors = validateCadetDetails(cadetDetails, CADET_REGISTRATION_FIELDS, []);
+      if (!errors.displayName) {
+        const displayNameError = validateRegistrationDisplayName(cadetDetails.displayName);
+        if (displayNameError) errors.displayName = displayNameError;
+      }
+      setDetails(cadetDetails);
+      if (!normalizedEmail || Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        setError(
+          !normalizedEmail
+            ? 'Email is required.'
+            : errors.displayName
+              ?? errors.cadetNumber
+              ?? 'Complete all required cadet information before registering.',
+        );
+        setMessage(null);
+        return;
+      }
+      setEmail(normalizedEmail);
+    }
+    if (mode === 'register' && password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Your password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setMessage(null);
+      return;
+    }
+
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -31,8 +96,9 @@ export default function AuthPage() {
         if (signInError) throw signInError;
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
+          options: { data: toRegistrationMetadata(cadetDetails ?? emptyCadetDetails()) },
         });
         if (signUpError) throw signUpError;
 
@@ -51,13 +117,14 @@ export default function AuthPage() {
     setMode(nextMode);
     setError(null);
     setMessage(null);
+    setFieldErrors({});
     clearError();
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-12">
-      <section className="glass-panel w-full max-w-md p-8">
-        <div className="text-center mb-8">
+    <main className="min-h-screen flex items-center justify-center px-4 py-8 sm:py-12">
+      <section className={`glass-panel min-w-0 w-full ${mode === 'register' ? 'max-w-2xl p-5 sm:p-8' : 'max-w-md p-8'}`}>
+        <div className={`text-center ${mode === 'register' ? 'mb-6' : 'mb-8'}`}>
           <div className="text-4xl font-bold glow-text mb-2">PPD</div>
           <h1 className="heading-section">
             {mode === 'sign-in' ? 'Welcome back' : 'Create a Cadet account'}
@@ -67,8 +134,23 @@ export default function AuthPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
+        <form onSubmit={handleSubmit} noValidate={mode === 'register'} className="space-y-4">
+          {mode === 'register' && (
+            <fieldset className="min-w-0 space-y-3 rounded-lg border border-cyan/20 p-3 sm:p-4">
+              <legend className="px-2 text-sm font-semibold text-cyan">Cadet information</legend>
+              <CadetDetailsFields
+                idPrefix="register"
+                fields={CADET_REGISTRATION_FIELDS}
+                values={details}
+                errors={fieldErrors}
+                requiredFields={CADET_REGISTRATION_FIELDS}
+                showDisplayNameFormat
+                disabled={busy}
+                onChange={updateDetail}
+              />
+            </fieldset>
+          )}
+          <div className="min-w-0">
             <label htmlFor="email" className="block text-sm font-semibold text-cyan mb-2">
               Email
             </label>
@@ -79,11 +161,11 @@ export default function AuthPage() {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
+              className="w-full min-w-0 p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
             />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label htmlFor="password" className="block text-sm font-semibold text-cyan mb-2">
               Password
             </label>
@@ -91,10 +173,11 @@ export default function AuthPage() {
               id="password"
               type="password"
               autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+              minLength={mode === 'register' ? MIN_PASSWORD_LENGTH : undefined}
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
+              className="w-full min-w-0 p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
             />
           </div>
 
@@ -118,7 +201,7 @@ export default function AuthPage() {
           </button>
         </form>
 
-        <p className="text-center text-light-gray text-sm mt-6">
+        <p className="text-center text-light-gray text-sm mt-5">
           {mode === 'sign-in' ? "Don't have an account?" : 'Already registered?'}{' '}
           <button
             type="button"
@@ -131,7 +214,10 @@ export default function AuthPage() {
         {mode === 'sign-in' && (
           <button
             type="button"
-            onClick={() => setCurrentPage('password-recovery')}
+            onClick={() => {
+              clearDeepLink();
+              setCurrentPage('password-recovery');
+            }}
             className="block mx-auto mt-4 text-cyan hover:underline text-sm font-semibold"
           >
             Forgot Password?

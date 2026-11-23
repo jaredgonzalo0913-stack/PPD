@@ -1,31 +1,89 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import { supabase } from '../lib/supabase';
+import CadetDetailsFields from '../components/CadetDetailsFields';
+import useUnsavedChangesGuard from '../hooks/useUnsavedChangesGuard';
+import { saveExtendedCadetColumns } from '../utils/cadetDirectory';
+import {
+  CADET_DETAIL_FIELDS,
+  CadetDetailErrors,
+  CadetDetailField,
+  CadetDetails,
+  getCadetDetailsFromUser,
+  normalizeCadetDetails,
+  toAuthMetadata,
+  validateCadetDetails,
+} from '../utils/cadetProfile';
 import { getRoleLabel } from '../utils/roleLabels';
 
 export default function ProfileSettingsPage() {
   const { user, profile, role, updateDisplayName } = useAuth();
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
-  const [bio, setBio] = useState('');
-  const [interests, setInterests] = useState('');
-  const [contactNumber, setContactNumber] = useState('');
+  const isCadet = role === 'student';
+  const visibleFields: readonly CadetDetailField[] = isCadet ? CADET_DETAIL_FIELDS : ['displayName'];
+  const [details, setDetails] = useState<CadetDetails>(() => getCadetDetailsFromUser(user, profile?.display_name));
+  const savedDetails = useRef(details);
+  const [fieldErrors, setFieldErrors] = useState<CadetDetailErrors>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const hasUnsavedChanges = visibleFields.some((field) => details[field] !== savedDetails.current[field]);
+  useUnsavedChangesGuard(
+    'profile-settings',
+    hasUnsavedChanges,
+    'You have unsaved profile changes. Leave this page and discard them?',
+  );
 
-  const saveDisplayName = async (event: FormEvent<HTMLFormElement>) => {
+  const updateDetail = (field: CadetDetailField, value: string) => {
+    setDetails((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSaving(true);
     setError(null);
     setSuccess(null);
 
+    const normalized = normalizeCadetDetails(details);
+    const errors: CadetDetailErrors = {};
+    for (const [field, message] of Object.entries(validateCadetDetails(normalized)) as Array<[CadetDetailField, string]>) {
+      if (visibleFields.includes(field)) errors[field] = message;
+    }
+    setDetails(normalized);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Complete all required fields before saving.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      await updateDisplayName(displayName);
-      setSuccess('Display name updated.');
+      await updateDisplayName(normalized.displayName);
+      if (isCadet && user) {
+        const { error: metadataError } = await supabase.auth.updateUser({ data: toAuthMetadata(normalized) });
+        if (metadataError) {
+          throw new Error(`Your display name was saved, but your other details could not be saved: ${metadataError.message}`);
+        }
+      }
+      savedDetails.current = normalized;
+      if (isCadet && user) {
+        const mirrored = await saveExtendedCadetColumns(user.id, normalized);
+        if (mirrored.error) {
+          setSuccess(`Profile saved to your account. Instructors cannot see the extra details yet (${mirrored.error}).`);
+          return;
+        }
+        if (!mirrored.saved) {
+          setSuccess(
+            'Profile saved to your account. Instructors cannot see full name, cadet number, year level, or section until the profile database update is applied.',
+          );
+          return;
+        }
+      }
+      setSuccess('Profile saved.');
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : 'Unable to save display name. Please try again.',
+          : 'Unable to save your profile. Please try again.',
       );
     } finally {
       setSaving(false);
@@ -38,7 +96,9 @@ export default function ProfileSettingsPage() {
         <header>
           <h1 className="heading-title">Profile Settings</h1>
           <p className="text-light-gray mt-2">
-            Manage the profile information currently supported by your account.
+            {isCadet
+              ? 'Keep your cadet information current. Instructors identify you by your display name.'
+              : 'Manage the profile information supported by your account.'}
           </p>
         </header>
 
@@ -65,82 +125,29 @@ export default function ProfileSettingsPage() {
         </section>
 
         <section className="glass-panel p-6 sm:p-8">
-          <h2 className="heading-section mb-2">Display name</h2>
+          <h2 className="heading-section mb-2">{isCadet ? 'Cadet information' : 'Display name'}</h2>
           <p className="text-light-gray text-sm mb-5">
-            This field exists in your current Supabase profile. Saving is subject to the existing database permissions.
+            {isCadet
+              ? 'Full name, display name, year level, and section are required. Cadet number is optional. Your display name is used in instructor assessment and grading lists.'
+              : 'Your display name is shown in the LMS. Saving is subject to the existing database permissions.'}
           </p>
-          <form onSubmit={saveDisplayName} className="space-y-4">
-            <div>
-              <label htmlFor="profile-display-name" className="block text-sm font-semibold text-cyan mb-2">
-                Display name
-              </label>
-              <input
-                id="profile-display-name"
-                type="text"
-                autoComplete="name"
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                required
-                className="w-full p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
-              />
-            </div>
+          <form onSubmit={saveProfile} noValidate className="space-y-4">
+            <CadetDetailsFields
+              idPrefix="profile"
+              fields={visibleFields}
+              values={details}
+              errors={fieldErrors}
+              disabled={saving}
+              onChange={updateDetail}
+            />
             <button type="submit" disabled={saving} className="button-primary disabled:opacity-60">
-              {saving ? 'Saving...' : 'Save display name'}
+              {saving ? 'Saving...' : isCadet ? 'Save cadet information' : 'Save display name'}
             </button>
           </form>
           {error && <p role="alert" className="text-red-300 text-sm mt-4">{error}</p>}
           {success && <p role="status" className="text-cyan text-sm mt-4">{success}</p>}
         </section>
 
-        <section className="glass-panel p-6 sm:p-8">
-          <h2 className="heading-section mb-2">Additional profile details</h2>
-          <p role="status" className="text-amber-200 text-sm mb-5">
-            These fields are temporary drafts only. The current profile schema does not include them, so they cannot be saved and will be lost when you leave this page or sign out.
-          </p>
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="profile-bio" className="block text-sm font-semibold text-cyan mb-2">
-                Short bio
-              </label>
-              <textarea
-                id="profile-bio"
-                value={bio}
-                onChange={(event) => setBio(event.target.value)}
-                rows={3}
-                className="w-full p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
-              />
-            </div>
-            <div>
-              <label htmlFor="profile-interests" className="block text-sm font-semibold text-cyan mb-2">
-                Hobbies and interests
-              </label>
-              <textarea
-                id="profile-interests"
-                value={interests}
-                onChange={(event) => setInterests(event.target.value)}
-                rows={3}
-                className="w-full p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
-              />
-            </div>
-            <div>
-              <label htmlFor="profile-contact-number" className="block text-sm font-semibold text-cyan mb-2">
-                Contact number (optional)
-              </label>
-              <input
-                id="profile-contact-number"
-                type="tel"
-                autoComplete="tel"
-                value={contactNumber}
-                onChange={(event) => setContactNumber(event.target.value)}
-                className="w-full p-3 bg-steel-gray border border-cyan/30 rounded-lg text-white"
-              />
-            </div>
-          </div>
-          <p className="text-light-gray/70 text-xs mt-5">
-            Date of birth and emergency-contact fields are not collected because they are sensitive and the current backend has no corresponding fields or privacy controls.
-          </p>
-        </section>
       </div>
     </div>
   );
